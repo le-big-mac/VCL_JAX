@@ -54,3 +54,35 @@ class MFVI_NN(nn.Module):
                 _ = branch(self, x, sample_key)
 
         return nn.switch(task_idx, branches, self, x, sample_key)
+
+
+def extract_means_and_logvars(params):
+    hidden_means = ([], [])
+    hidden_logvars = ([], [])
+    last_means = ([], [])
+    last_logvars = ([], [])
+
+    i = 0
+    while True:
+        try:
+            hidden_means[0].append(params[f'hidden_layers_{i}']['kernel_mean'])
+            hidden_means[1].append(params[f'hidden_layers_{i}']['bias_mean'])
+            hidden_logvars[0].append(params[f'hidden_layers_{i}']['kernel_logvar'])
+            hidden_logvars[1].append(params[f'hidden_layers_{i}']['bias_logvar'])
+            i += 1
+        except KeyError:
+            break
+
+    i = 0
+    while True:
+        try:
+            last_means[0].append(params[f'task_heads_{i}']['kernel_mean'])
+            last_means[1].append(params[f'task_heads_{i}']['bias_mean'])
+            last_logvars[0].append(params[f'task_heads_{i}']['kernel_logvar'])
+            last_logvars[1].append(params[f'task_heads_{i}']['bias_logvar'])
+            i += 1
+        except KeyError:
+            break
+
+    return hidden_means, hidden_logvars, last_means, last_logvars
+

@@ -1,6 +1,5 @@
 import jax.numpy as jnp
-from flax import linen as nn
-from flax.training import common_utils
+import optax
 
 
 def kl_divergence(m, v, m0, v0):
@@ -23,17 +22,15 @@ def total_kl_divergence(new_params, prev_params):
     return kl
 
 
-def loglikelihood(logits, targets, num_samples, num_classes=10):
-    targets = common_utils.onehot(targets, num_classes)
-    targets = jnp.repeat(targets[jnp.newaxis, ...], num_samples, axis=0)
-    log_lik = -nn.softmax_cross_entropy_with_logits(logits, targets).mean()
+def loglikelihood(logits, targets):
+    log_lik = -optax.softmax_cross_entropy_with_integer_labels(logits, targets).mean()
     return log_lik
 
 
 def loss_fn(state, logits, targets, prev_params):
     kl = total_kl_divergence(state.params, prev_params)
-    log_lik = loglikelihood(logits, targets, state.num_train_samples, state.output_size)
-    return log_lik + kl / targets.shape[0]
+    log_lik = loglikelihood(logits, targets)
+    return kl / targets.shape[0] - log_lik
 
 
 def accuracy(logits, targets):
