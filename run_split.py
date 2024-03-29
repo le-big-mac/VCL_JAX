@@ -38,9 +38,10 @@ for task_idx, task in enumerate(task_train_data):
     coreset_loader = SplitLoader(coreset_data, num_samples=num_train_samples, batch_size=32, shuffle=True)
     coresets.append(coreset_loader)
 
-    model = MFVI_NN(hidden_size, output_size, multi_head, prev_hidden_means,
+    model = MFVI_NN(hidden_size, output_size, prev_hidden_means,
                     prev_hidden_logvars, prev_last_means,
                     prev_last_logvars,
+                    multi_head=multi_head,
                     num_train_samples=num_train_samples,
                     num_pred_samples=num_pred_samples)
     dummy_input = jnp.ones([1, 784])

@@ -8,11 +8,11 @@ from .layers import MFVI_Dense
 class MFVI_NN(nn.Module):
     hidden_size: list[int]
     output_size: int
-    multi_head : bool = False
     previous_mean_hidden: tuple[list[jax.Array], list[jax.Array]]
     previous_logvar_hidden: tuple[list[jax.Array], list[jax.Array]]
     previous_mean_last: tuple[list[jax.Array], list[jax.Array]]
     previous_logvar_last: tuple[list[jax.Array], list[jax.Array]]
+    multi_head : bool = False
     num_train_samples: int = 10
     num_pred_samples: int = 100
     prior_mean : int = 0.0
