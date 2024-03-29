@@ -6,10 +6,11 @@ from torch.utils import data
 from torchvision.datasets import MNIST
 
 
-class NumpyLoader(data.DataLoader):
+class SampleLoader(data.DataLoader):
     def __init__(
         self,
         dataset,
+        num_samples,
         batch_size=1,
         shuffle=False,
         sampler=None,
@@ -33,12 +34,17 @@ class NumpyLoader(data.DataLoader):
             timeout=timeout,
             worker_init_fn=worker_init_fn,
         )
+        self.num_samples = num_samples
 
     def collate_fn(self, batch):
-        return tree_map(np.asarray, data.default_collate(batch))
+        batch = tree_map(np.asarray, data.default_collate(batch))
+        d, t = batch
+        d = d.reshape(d.shape[0], -1)
+        t = jnp.repeat(t[jnp.newaxis, ...], self.num_samples, axis=0)
+        return d, t
 
 
-class SplitLoader(NumpyLoader):
+class SplitLoader(SampleLoader):
     def __init__(
         self,
         dataset,
@@ -54,10 +60,31 @@ class SplitLoader(NumpyLoader):
         self.num_samples = num_samples
 
     def collate_fn(self, batch):
-        batch = super().collate_fn(batch)
-        d, t = batch
-        t = jnp.repeat(t[jnp.newaxis, ...], self.num_samples, axis=0)
+        d, t = super().collate_fn(batch)
         return d, jnp.mod(t, 2)
+
+
+class PermutedLoader(SampleLoader):
+    def __init__(
+        self,
+        dataset,
+        num_samples,
+        permutation,
+        batch_size=1,
+        shuffle=False
+    ):
+        super().__init__(
+            dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+        )
+        self.num_samples = num_samples
+        self.permutation = permutation
+
+    def collate_fn(self, batch):
+        d, t = super().collate_fn(batch)
+        d = d[:, self.permutation]
+        return d, t
 
 
 class FlattenAndCast(object):

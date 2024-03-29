@@ -3,7 +3,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --partition=devel
 #SBATCH --clusters=htc
-#SBATCH --job-name=stable-agd
+#SBATCH --job-name=vcl
 #SBATCH --gres=gpu:1
 #SBATCH --mem-per-cpu=12G
 #SBATCH --output=reports/%j.out
