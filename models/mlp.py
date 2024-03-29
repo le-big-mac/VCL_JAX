@@ -1,5 +1,4 @@
 import jax
-import jax.numpy as jnp
 from flax import linen as nn
 
 from .layers import MFVI_Dense
@@ -12,24 +11,27 @@ class MFVI_NN(nn.Module):
     previous_logvar_hidden: tuple[list[jax.Array], list[jax.Array]]
     previous_mean_last: tuple[list[jax.Array], list[jax.Array]]
     previous_logvar_last: tuple[list[jax.Array], list[jax.Array]]
-    multi_head : bool = False
     num_train_samples: int = 10
     num_pred_samples: int = 100
-    prior_mean : int = 0.0
-    prior_logvar : int = 0.0
 
     def setup(self):
-        self.hidden_layers = [MFVI_Dense(self.hidden_size[i], self.previous_mean_hidden[0][i], self.previous_logvar_hidden[0][i], self.previous_mean_hidden[1][i], self.previous_logvar_hidden[1][i]) for i in range(len(self.hidden_size))]
+        self.hidden_layers = [
+            MFVI_Dense(self.hidden_size[i],
+                       self.previous_mean_hidden[0][i],
+                       self.previous_logvar_hidden[0][i],
+                       self.previous_mean_hidden[1][i],
+                       self.previous_logvar_hidden[1][i])
+            for i in range(len(self.hidden_size))
+            ]
 
-        task_heads = [MFVI_Dense(self.output_size, W_m_l, W_v_l, b_m_l, b_v_l) for W_m_l, W_v_l, b_m_l, b_v_l in zip(self.previous_mean_last[0], self.previous_logvar_last[0], self.previous_mean_last[1], self.previous_logvar_last[1])]
-
-        if self.multi_head or len(task_heads) == 0:
-            W_m_l = jnp.full((self.hidden_size[-1], self.output_size), self.prior_mean)
-            W_v_l = jnp.full((self.hidden_size[-1], self.output_size), self.prior_logvar)
-            b_m_l = jnp.full((self.output_size,), self.prior_mean)
-            b_v_l = jnp.full((self.output_size,), self.prior_logvar)
-            new_head = MFVI_Dense(self.output_size, W_m_l, W_v_l, b_m_l, b_v_l)
-            self.task_heads = task_heads + [new_head]
+        self.task_heads = [
+            MFVI_Dense(self.output_size, W_m_l, W_v_l, b_m_l, b_v_l)
+            for W_m_l, W_v_l, b_m_l, b_v_l in
+            zip(self.previous_mean_last[0],
+                self.previous_logvar_last[0],
+                self.previous_mean_last[1],
+                self.previous_logvar_last[1])
+            ]
 
     def __call__(self, inputs, task_idx, training=False):
         num_samples = self.num_train_samples if training else self.num_pred_samples
