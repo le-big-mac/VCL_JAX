@@ -15,4 +15,4 @@ module load cuDNN/8.9.2.26-CUDA-12.1.1
 
 source activate $DATA/.cache/conda/envs/vcl4
 
-python run_$1.py
+python run_$1.py $2
