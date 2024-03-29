@@ -1,4 +1,5 @@
 from copy import deepcopy
+import sys
 
 import jax
 from jax import random
@@ -12,7 +13,7 @@ from training.train_vcl import create_train_state, train_Dt, eval_Dt
 
 print("Running permutation experiment")
 
-seed = 0
+seed = int(sys.argv[1])
 key = random.PRNGKey(seed)
 np.random.seed(seed)
 input_size = 784
