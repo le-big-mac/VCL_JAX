@@ -40,7 +40,8 @@ class SampleLoader(data.DataLoader):
         batch = tree_map(np.asarray, data.default_collate(batch))
         d, t = batch
         d = d.reshape(d.shape[0], -1)
-        t = jnp.repeat(t[jnp.newaxis, ...], self.num_samples, axis=0)
+        if self.num_samples > 1:
+            t = jnp.repeat(t[jnp.newaxis, ...], self.num_samples, axis=0)
         return d, t
 
 

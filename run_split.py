@@ -82,7 +82,7 @@ for task_idx, task in enumerate(task_train_data):
         state = train_Dt(subkey, state, i, coreset_loader, num_epochs, prev_params)
 
         test_set = task_test_data[i]
-        test_loader = SplitLoader(test_set, num_samples=num_pred_samples, batch_size=len(test_set), shuffle=False)
+        test_loader = SplitLoader(test_set, num_samples=1, batch_size=len(test_set), shuffle=False)
         key, subkey = random.split(key)
         accuracy = eval_Dt(subkey, state, i, test_loader)
         print(f"Task {i} accuracy: {accuracy}")

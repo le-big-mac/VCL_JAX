@@ -83,7 +83,7 @@ for task_idx in range(num_tasks):
         key, subkey = random.split(key)
         state = train_Dt(subkey, state, i, coreset_loader, num_epochs, prev_params)
 
-        test_loader = PermutedLoader(test_data, num_samples=num_pred_samples, permutation=permutations[i], batch_size=128, shuffle=False)
+        test_loader = PermutedLoader(test_data, num_samples=1, permutation=permutations[i], batch_size=128, shuffle=False)
         key, subkey = random.split(key)
         accuracy = eval_Dt(subkey, state, i, test_loader)
         print(f"Task {i} accuracy: {accuracy}")

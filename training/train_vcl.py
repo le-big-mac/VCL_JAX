@@ -42,9 +42,10 @@ def eval_Dt(rng, state, task_idx, task_loader):
     total = 0
     correct = 0
     for data, targets in task_loader:
+        targets = targets.squeeze()
         rng, subkey = jax.random.split(rng)
         logits = eval_step(subkey, state, task_idx, data)
-        total += len(logits)
+        total += len(targets)
         correct += (logits.argmax(axis=-1) == targets).sum()
 
     return correct / total
