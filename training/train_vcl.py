@@ -29,11 +29,10 @@ def eval_step(rng, state, task_idx, data):
     return jnp.mean(logits, axis=0)
 
 
-def train_Dt(rng, state, task_idx, task_loader, num_epochs, prev_params, num_samples=10):
+def train_Dt(rng, state, task_idx, task_loader, num_epochs, prev_params):
     for _ in tqdm(range(num_epochs)):
         for data, targets in task_loader:
             data = data.reshape((data.shape[0], -1))
-            targets = jnp.repeat(targets[jnp.newaxis, ...], num_samples, axis=0)
 
             rng, subkey = jax.random.split(rng)
             state = train_step(subkey, state, task_idx, data, targets, prev_params)

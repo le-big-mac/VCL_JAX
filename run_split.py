@@ -4,16 +4,18 @@ import jax
 import jax.numpy as jnp
 
 from data.coreset import random_coreset
-from data.mnist import get_split_MNIST, NumpyLoader
+from data.mnist import get_split_MNIST, SplitLoader
 from models.mlp import MFVI_NN, extract_means_and_logvars
 from training.train_vcl import create_train_state, train_Dt, eval_Dt
 
 key = jax.random.PRNGKey(0)
 input_size = 784
 hidden_size = [256, 256]
-output_size = 10
+output_size = 2
+multi_head = True
 num_train_samples = 10
 num_pred_samples = 100
+num_epochs = 120
 
 sizes = [input_size] + hidden_size
 prev_hidden_means = ([jnp.zeros((din, dout)) for din, dout in zip(sizes[:-1], sizes[1:])],
@@ -26,17 +28,17 @@ prev_last_logvars = ([], [])
 task_train_data, task_test_data = get_split_MNIST()
 
 coreset_selection_fn = random_coreset
-coreset_size = 100
+coreset_size = 40
 coresets = []
 
 for task_idx, task in enumerate(task_train_data):
     train_data, coreset_data = coreset_selection_fn(task, coreset_size)
 
-    train_loader = NumpyLoader(train_data, batch_size=32, shuffle=True)
-    coreset_loader = NumpyLoader(coreset_data, batch_size=32, shuffle=True)
+    train_loader = SplitLoader(train_data, num_samples=num_train_samples, batch_size=32, shuffle=True)
+    coreset_loader = SplitLoader(coreset_data, num_samples=num_train_samples, batch_size=32, shuffle=True)
     coresets.append(coreset_loader)
 
-    model = MFVI_NN(hidden_size, output_size, prev_hidden_means,
+    model = MFVI_NN(hidden_size, output_size, multi_head, prev_hidden_means,
                     prev_hidden_logvars, prev_last_means,
                     prev_last_logvars,
                     num_train_samples=num_train_samples,
@@ -48,17 +50,17 @@ for task_idx, task in enumerate(task_train_data):
     state = create_train_state(model, params, learning_rate=1e-3)
 
     key, subkey = jax.random.split(key)
-    state = train_Dt(subkey, state, task_idx, train_loader, 100, prev_params, num_train_samples)
+    state = train_Dt(subkey, state, task_idx, train_loader, num_epochs, prev_params)
     prev_params = deepcopy(state.params)
     prev_hidden_means, prev_hidden_logvars, prev_last_means, prev_last_logvars = extract_means_and_logvars(prev_params)
 
     for task_idx, coreset_loader in enumerate(coresets):
         state = create_train_state(model, prev_params, learning_rate=1e-3)
         key, subkey = jax.random.split(key)
-        state = train_Dt(subkey, state, task_idx, coreset_loader, 100, prev_params, num_train_samples)
+        state = train_Dt(subkey, state, task_idx, coreset_loader, num_epochs, prev_params)
 
         test_set = task_test_data[task_idx]
-        test_loader = NumpyLoader(test_set, batch_size=32, shuffle=False)
+        test_loader = SplitLoader(test_set, num_samples=num_pred_samples, batch_size=32, shuffle=False)
         key, subkey = jax.random.split(key)
         accuracy = eval_Dt(subkey, state, task_idx, test_loader)
         print(f"Task {task_idx} accuracy: {accuracy}")

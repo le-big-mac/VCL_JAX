@@ -6,10 +6,6 @@ from torch.utils import data
 from torchvision.datasets import MNIST
 
 
-def numpy_collate(batch):
-    return tree_map(np.asarray, data.default_collate(batch))
-
-
 class NumpyLoader(data.DataLoader):
     def __init__(
         self,
@@ -24,19 +20,44 @@ class NumpyLoader(data.DataLoader):
         timeout=0,
         worker_init_fn=None,
     ):
-        super(self.__class__, self).__init__(
+        super().__init__(
             dataset,
             batch_size=batch_size,
             shuffle=shuffle,
             sampler=sampler,
             batch_sampler=batch_sampler,
             num_workers=num_workers,
-            collate_fn=numpy_collate,
+            collate_fn=self.collate_fn,
             pin_memory=pin_memory,
             drop_last=drop_last,
             timeout=timeout,
             worker_init_fn=worker_init_fn,
         )
+
+    def collate_fn(self, batch):
+        return tree_map(np.asarray, data.default_collate(batch))
+
+
+class SplitLoader(NumpyLoader):
+    def __init__(
+        self,
+        dataset,
+        num_samples,
+        batch_size=1,
+        shuffle=False
+    ):
+        super().__init__(
+            dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+        )
+        self.num_samples = num_samples
+
+    def collate_fn(self, batch):
+        batch = super().collate_fn(batch)
+        d, t = batch
+        t = jnp.repeat(t[jnp.newaxis, ...], self.num_samples, axis=0)
+        return d, jnp.mod(t, 2)
 
 
 class FlattenAndCast(object):
