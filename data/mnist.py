@@ -54,6 +54,7 @@ class SplitLoader(SampleLoader):
     ):
         super().__init__(
             dataset,
+            num_samples=num_samples,
             batch_size=batch_size,
             shuffle=shuffle,
         )
@@ -75,10 +76,10 @@ class PermutedLoader(SampleLoader):
     ):
         super().__init__(
             dataset,
+            num_samples=num_samples,
             batch_size=batch_size,
             shuffle=shuffle,
         )
-        self.num_samples = num_samples
         self.permutation = permutation
 
     def collate_fn(self, batch):
@@ -92,7 +93,7 @@ class FlattenAndCast(object):
         return np.ravel(np.array(pic, dtype=jnp.float32))
 
 
-def get_split_MNIST():
+def get_MNIST():
     train_dataset = MNIST(
         root="data",
         train=True,
@@ -105,6 +106,12 @@ def get_split_MNIST():
         transform=FlattenAndCast(),
         download=True,
     )
+
+    return train_dataset, test_dataset
+
+
+def get_split_MNIST():
+    train_dataset, test_dataset = get_MNIST()
 
     train_data = []
     test_data = []

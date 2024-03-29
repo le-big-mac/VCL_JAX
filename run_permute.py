@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from data.coreset import random_coreset
-from data.mnist import get_split_MNIST, PermutedLoader
+from data.mnist import get_MNIST, PermutedLoader
 from models.mlp import MFVI_NN, extract_means_and_logvars
 from training.train_vcl import create_train_state, train_Dt, eval_Dt
 
@@ -19,6 +19,7 @@ output_size = 10
 num_train_samples = 10
 num_pred_samples = 100
 num_epochs = 120
+num_tasks = 5
 
 sizes = [input_size] + hidden_size
 key, kernel_keys, bias_keys = random.split(key, 3)
@@ -44,15 +45,15 @@ prev_last_logvars = (
     [jnp.full(output_size, -6.)]
     )
 
-task_train_data, task_test_data = get_split_MNIST()
-permutations = [np.random.permutation(784) for _ in len(task_train_data)]
+train_data, test_data = get_MNIST()
+permutations = [np.random.permutation(784) for _ in range(num_tasks)]
 
 coreset_selection_fn = random_coreset
 coreset_size = 40
 coresets = []
 
-for task_idx, task in enumerate(task_train_data):
-    train_data, coreset_data = coreset_selection_fn(task, coreset_size)
+for task_idx in range(num_tasks):
+    train_data, coreset_data = coreset_selection_fn(train_data, coreset_size)
 
     train_loader = PermutedLoader(train_data, num_samples=num_train_samples, permutation=permutations[task_idx], batch_size=32, shuffle=True)
     coreset_loader = PermutedLoader(coreset_data, num_samples=num_train_samples, permutation=permutations[task_idx], batch_size=32, shuffle=True)
@@ -79,8 +80,7 @@ for task_idx, task in enumerate(task_train_data):
         key, subkey = random.split(key)
         state = train_Dt(subkey, state, i, coreset_loader, num_epochs, prev_params)
 
-        test_set = task_test_data[i]
-        test_loader = PermutedLoader(test_set, num_samples=num_pred_samples, permutation=permutations[i], batch_size=len(test_set), shuffle=False)
+        test_loader = PermutedLoader(test_data, num_samples=num_pred_samples, permutation=permutations[i], batch_size=128, shuffle=False)
         key, subkey = random.split(key)
         accuracy = eval_Dt(subkey, state, i, test_loader)
         print(f"Task {i} accuracy: {accuracy}")

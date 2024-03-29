@@ -32,8 +32,6 @@ def eval_step(rng, state, task_idx, data):
 def train_Dt(rng, state, task_idx, task_loader, num_epochs, prev_params):
     for _ in tqdm(range(num_epochs)):
         for data, targets in task_loader:
-            data = data.reshape((data.shape[0], -1))
-
             rng, subkey = jax.random.split(rng)
             state = train_step(subkey, state, task_idx, data, targets, prev_params)
 
@@ -44,8 +42,6 @@ def eval_Dt(rng, state, task_idx, task_loader):
     total = 0
     correct = 0
     for data, targets in task_loader:
-        data = data.reshape((data.shape[0], -1))
-
         rng, subkey = jax.random.split(rng)
         logits = eval_step(subkey, state, task_idx, data)
         total += len(logits)
