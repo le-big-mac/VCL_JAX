@@ -11,9 +11,10 @@ from data.mnist import get_split_MNIST, SplitLoader
 from models.mlp import MFVI_NN, extract_means_and_logvars
 from training.train_vcl import create_train_state, train_Dt, eval_Dt
 
-print("Running split experiment")
-
 seed = int(sys.argv[1])
+print("Running split experiment")
+print(f"Seed: {seed}")
+
 key = random.PRNGKey(seed)
 np.random.seed(seed)
 input_size = 784

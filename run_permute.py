@@ -11,9 +11,10 @@ from data.mnist import get_MNIST, PermutedLoader
 from models.mlp import MFVI_NN, extract_means_and_logvars
 from training.train_vcl import create_train_state, train_Dt, eval_Dt
 
-print("Running permutation experiment")
-
 seed = int(sys.argv[1])
+print("Running permutation experiment")
+print(f"Seed: {seed}")
+
 key = random.PRNGKey(seed)
 np.random.seed(seed)
 input_size = 784
