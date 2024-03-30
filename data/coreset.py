@@ -1,32 +1,21 @@
 import numpy as np
 
-from torch.utils import data
+from data.mnist import TensorDataset
 
 
-def random_coreset(subset, num_coreset_samples):
-    try:
-        subset_indices = subset.indices
-        dataset = subset.dataset
-    except AttributeError:
-        subset_indices = np.arange(len(subset))
-        dataset = subset
+def random_coreset(dataset, num_coreset_samples):
+    coreset_indices = np.random.choice(np.arange(len(dataset)), num_coreset_samples, replace=False)
+    train_indices = np.setdiff1d(np.arange(len(dataset)), coreset_indices)
+    coreset_dataset = TensorDataset(dataset.data[coreset_indices], dataset.targets[coreset_indices])
+    train_dataset = TensorDataset(dataset.data[train_indices], dataset.targets[train_indices])
 
-    coreset_indices = np.random.choice(subset_indices, num_coreset_samples, replace=False)
-    dataset_indices = np.setdiff1d(subset_indices, coreset_indices)
-    return data.Subset(dataset, dataset_indices), data.Subset(dataset, coreset_indices)
+    return train_dataset, coreset_dataset
 
 
-def k_center_coreset(subset, num_coreset_samples):
-    try:
-        subset_indices = subset.indices
-        dataset = subset.dataset
-    except AttributeError:
-        subset_indices = np.arange(len(subset))
-        dataset = subset
-
+def k_center_coreset(dataset, num_coreset_samples):
     # Initialize coreset with a random sample
-    coreset_indices = np.random.choice(subset_indices, 1, replace=False)
-    dataset_indices = np.setdiff1d(subset_indices, coreset_indices)
+    coreset_indices = np.random.choice(np.arange(len(dataset)), 1, replace=False)
+    dataset_indices = np.setdiff1d(np.arange(len(dataset)), coreset_indices)
 
     while len(coreset_indices) < num_coreset_samples:
         distances = np.inf * np.ones(len(dataset_indices))
@@ -38,4 +27,6 @@ def k_center_coreset(subset, num_coreset_samples):
         coreset_indices = np.append(coreset_indices, new_idx)
         dataset_indices = np.setdiff1d(dataset_indices, new_idx)
 
-    return data.Subset(dataset, dataset_indices), data.Subset(dataset, coreset_indices)
+    coreset_dataset = TensorDataset(dataset.data[coreset_indices], dataset.targets[coreset_indices])
+    train_dataset = TensorDataset(dataset.data[dataset_indices], dataset.targets[dataset_indices])
+    return train_dataset, coreset_dataset

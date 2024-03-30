@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from data.coreset import random_coreset
-from data.mnist import get_split_MNIST, SplitLoader
+from data.mnist import get_split_MNIST, SampleLoader
 from models.mlp import MFVI_NN, extract_means_and_logvars
 from training.train_vcl import create_train_state, train_Dt, eval_Dt
 
@@ -24,6 +24,7 @@ multi_head = True
 num_train_samples = 10
 num_pred_samples = 100
 num_epochs = 120
+batch_size = 512
 
 sizes = [input_size] + hidden_size
 key, kernel_keys, bias_keys = random.split(key, 3)
@@ -49,11 +50,12 @@ coreset_size = 40
 coresets = []
 
 for task_idx, task in enumerate(task_train_data):
-    train_data, coreset_data = coreset_selection_fn(task, coreset_size)
+    train_data = task
+    if coreset_size > 0:
+        train_data, coreset_data = coreset_selection_fn(task, coreset_size)
+        coresets.append(coreset_data)
 
-    train_loader = SplitLoader(train_data, num_samples=num_train_samples, batch_size=32, shuffle=True)
-    coreset_loader = SplitLoader(coreset_data, num_samples=num_train_samples, batch_size=32, shuffle=True)
-    coresets.append(coreset_loader)
+    train_loader = SampleLoader(train_data, num_samples=num_train_samples, batch_size=batch_size, shuffle=True)
 
     key, kernel_key, bias_key = random.split(key, 3)
     prev_last_means[0].append(truncated_normal(kernel_key, (hidden_size[-1], output_size), jnp.float32))
@@ -77,13 +79,13 @@ for task_idx, task in enumerate(task_train_data):
     prev_params = deepcopy(state.params)
     prev_hidden_means, prev_hidden_logvars, prev_last_means, prev_last_logvars = extract_means_and_logvars(prev_params)
 
-    for i, coreset_loader in enumerate(coresets):
+    for i in range(task_idx + 1):
         state = create_train_state(model, prev_params, learning_rate=1e-3)
+        coreset_loader = SampleLoader(coresets[i], num_samples=num_train_samples, batch_size=batch_size, shuffle=True)
         key, subkey = random.split(key)
         state = train_Dt(subkey, state, i, coreset_loader, num_epochs, prev_params)
 
-        test_set = task_test_data[i]
-        test_loader = SplitLoader(test_set, num_samples=1, batch_size=len(test_set), shuffle=False)
+        test_loader = SampleLoader(task_test_data[i], num_samples=1, batch_size=batch_size, shuffle=False)
         key, subkey = random.split(key)
         accuracy = eval_Dt(subkey, state, i, test_loader)
         print(f"Task {i} accuracy: {accuracy}")

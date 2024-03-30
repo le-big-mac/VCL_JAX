@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from data.coreset import random_coreset
-from data.mnist import get_MNIST, PermutedLoader
+from data.mnist import get_permuted_MNIST, SampleLoader, combine_datasets
 from models.mlp import MFVI_NN, extract_means_and_logvars
 from training.train_vcl import create_train_state, train_Dt, eval_Dt
 
@@ -50,21 +50,20 @@ prev_last_logvars = (
     [jnp.full(output_size, -6.)]
     )
 
-all_train_data, all_test_data = get_MNIST()
+task_train_data, task_test_data = get_permuted_MNIST(num_tasks)
 permutations = [np.random.permutation(784) for _ in range(num_tasks)]
 
 coreset_selection_fn = random_coreset
 coreset_size = 0
 coresets = []
 
-for task_idx in range(num_tasks):
-    train_data = all_train_data
+for task_idx, task in enumerate(task_train_data):
+    train_data = task
     if coreset_size > 0:
-        train_data, coreset_data = coreset_selection_fn(all_train_data, coreset_size)
-        coreset_loader = PermutedLoader(coreset_data, num_samples=num_train_samples, permutation=permutations[task_idx], batch_size=batch_size, shuffle=True)
-        coresets.append(coreset_loader)
+        train_data, coreset_data = coreset_selection_fn(train_data, coreset_size)
+        coresets.append(coreset_data)
 
-    train_loader = PermutedLoader(train_data, num_samples=num_train_samples, permutation=permutations[task_idx], batch_size=batch_size, shuffle=True)
+    train_loader = SampleLoader(train_data, num_samples=num_train_samples, batch_size=batch_size, shuffle=True)
 
     model = MFVI_NN(hidden_size, output_size, prev_hidden_means,
                     prev_hidden_logvars, prev_last_means,
@@ -82,13 +81,15 @@ for task_idx in range(num_tasks):
     prev_params = deepcopy(state.params)
     prev_hidden_means, prev_hidden_logvars, prev_last_means, prev_last_logvars = extract_means_and_logvars(prev_params)
 
-    for i in range(num_tasks):
-        state = create_train_state(model, prev_params, learning_rate=1e-3)
+    if coreset_size > 0 and len(coresets) > 0:
+        coreset = combine_datasets(coresets)
+        coreset_loader = SampleLoader(coreset, num_samples=num_train_samples, batch_size=batch_size, shuffle=True)
         key, subkey = random.split(key)
-        if coreset_size > 0:
-            state = train_Dt(subkey, state, 0, coresets[i], num_epochs, prev_params)
+        state = train_Dt(subkey, state, 0, coreset_loader, num_epochs, prev_params)
 
-        test_loader = PermutedLoader(all_test_data, num_samples=1, permutation=permutations[i], batch_size=batch_size, shuffle=False)
+    for i in range(task_idx + 1):
+        state = create_train_state(model, prev_params, learning_rate=1e-3)
+        test_loader = SampleLoader(task_test_data[i], num_samples=1, batch_size=batch_size, shuffle=False)
         key, subkey = random.split(key)
         accuracy = eval_Dt(subkey, state, 0, test_loader)
         print(f"Task {i} accuracy: {accuracy}")
