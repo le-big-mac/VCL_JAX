@@ -49,19 +49,20 @@ prev_last_logvars = (
     [jnp.full(output_size, -6.)]
     )
 
-train_data, test_data = get_MNIST()
+all_train_data, all_test_data = get_MNIST()
 permutations = [np.random.permutation(784) for _ in range(num_tasks)]
 
 coreset_selection_fn = random_coreset
-coreset_size = 40
+coreset_size = 0
 coresets = []
 
 for task_idx in range(num_tasks):
-    train_data, coreset_data = coreset_selection_fn(train_data, coreset_size)
+    if coreset_size > 0:
+        train_data, coreset_data = coreset_selection_fn(all_train_data, coreset_size)
+        coreset_loader = PermutedLoader(coreset_data, num_samples=num_train_samples, permutation=permutations[task_idx], batch_size=32, shuffle=True)
+        coresets.append(coreset_loader)
 
     train_loader = PermutedLoader(train_data, num_samples=num_train_samples, permutation=permutations[task_idx], batch_size=32, shuffle=True)
-    coreset_loader = PermutedLoader(coreset_data, num_samples=num_train_samples, permutation=permutations[task_idx], batch_size=32, shuffle=True)
-    coresets.append(coreset_loader)
 
     model = MFVI_NN(hidden_size, output_size, prev_hidden_means,
                     prev_hidden_logvars, prev_last_means,
@@ -79,12 +80,13 @@ for task_idx in range(num_tasks):
     prev_params = deepcopy(state.params)
     prev_hidden_means, prev_hidden_logvars, prev_last_means, prev_last_logvars = extract_means_and_logvars(prev_params)
 
-    for i, coreset_loader in enumerate(coresets):
+    for i in num_tasks:
         state = create_train_state(model, prev_params, learning_rate=1e-3)
         key, subkey = random.split(key)
-        state = train_Dt(subkey, state, 0, coreset_loader, num_epochs, prev_params)
+        if coreset_size > 0:
+            state = train_Dt(subkey, state, 0, coresets[i], num_epochs, prev_params)
 
-        test_loader = PermutedLoader(test_data, num_samples=1, permutation=permutations[i], batch_size=128, shuffle=False)
+        test_loader = PermutedLoader(all_test_data, num_samples=1, permutation=permutations[i], batch_size=128, shuffle=False)
         key, subkey = random.split(key)
         accuracy = eval_Dt(subkey, state, 0, test_loader)
         print(f"Task {i} accuracy: {accuracy}")
