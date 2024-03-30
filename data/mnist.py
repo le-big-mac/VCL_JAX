@@ -70,8 +70,8 @@ def get_MNIST():
         download=True,
     )
 
-    train_dataset = TensorDataset(train_dataset.data.reshape(-1, 784), train_dataset.targets)
-    test_dataset = TensorDataset(test_dataset.data.reshape(-1, 784), test_dataset.targets)
+    train_dataset = TensorDataset(train_dataset.data.reshape(-1, 784) / 255, train_dataset.targets)
+    test_dataset = TensorDataset(test_dataset.data.reshape(-1, 784) / 255, test_dataset.targets)
 
     return train_dataset, test_dataset
 
