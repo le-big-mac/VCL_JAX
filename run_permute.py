@@ -75,16 +75,16 @@ for task_idx in range(num_tasks):
     state = create_train_state(model, params, learning_rate=1e-3)
 
     key, subkey = random.split(key)
-    state = train_Dt(subkey, state, task_idx, train_loader, num_epochs, prev_params)
+    state = train_Dt(subkey, state, 0, train_loader, num_epochs, prev_params)
     prev_params = deepcopy(state.params)
     prev_hidden_means, prev_hidden_logvars, prev_last_means, prev_last_logvars = extract_means_and_logvars(prev_params)
 
     for i, coreset_loader in enumerate(coresets):
         state = create_train_state(model, prev_params, learning_rate=1e-3)
         key, subkey = random.split(key)
-        state = train_Dt(subkey, state, i, coreset_loader, num_epochs, prev_params)
+        state = train_Dt(subkey, state, 0, coreset_loader, num_epochs, prev_params)
 
         test_loader = PermutedLoader(test_data, num_samples=1, permutation=permutations[i], batch_size=128, shuffle=False)
         key, subkey = random.split(key)
-        accuracy = eval_Dt(subkey, state, i, test_loader)
+        accuracy = eval_Dt(subkey, state, 0, test_loader)
         print(f"Task {i} accuracy: {accuracy}")
