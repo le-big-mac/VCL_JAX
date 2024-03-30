@@ -57,6 +57,7 @@ coreset_size = 0
 coresets = []
 
 for task_idx in range(num_tasks):
+    train_data = all_train_data
     if coreset_size > 0:
         train_data, coreset_data = coreset_selection_fn(all_train_data, coreset_size)
         coreset_loader = PermutedLoader(coreset_data, num_samples=num_train_samples, permutation=permutations[task_idx], batch_size=32, shuffle=True)
