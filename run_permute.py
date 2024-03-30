@@ -18,12 +18,13 @@ print(f"Seed: {seed}")
 key = random.PRNGKey(seed)
 np.random.seed(seed)
 input_size = 784
-hidden_size = [256, 256]
+hidden_size = [100, 100]
 output_size = 10
 num_train_samples = 10
 num_pred_samples = 100
-num_epochs = 120
+num_epochs = 100
 num_tasks = 5
+batch_size = 256
 
 sizes = [input_size] + hidden_size
 key, kernel_keys, bias_keys = random.split(key, 3)
@@ -60,10 +61,10 @@ for task_idx in range(num_tasks):
     train_data = all_train_data
     if coreset_size > 0:
         train_data, coreset_data = coreset_selection_fn(all_train_data, coreset_size)
-        coreset_loader = PermutedLoader(coreset_data, num_samples=num_train_samples, permutation=permutations[task_idx], batch_size=32, shuffle=True)
+        coreset_loader = PermutedLoader(coreset_data, num_samples=num_train_samples, permutation=permutations[task_idx], batch_size=batch_size, shuffle=True)
         coresets.append(coreset_loader)
 
-    train_loader = PermutedLoader(train_data, num_samples=num_train_samples, permutation=permutations[task_idx], batch_size=32, shuffle=True)
+    train_loader = PermutedLoader(train_data, num_samples=num_train_samples, permutation=permutations[task_idx], batch_size=batch_size, shuffle=True)
 
     model = MFVI_NN(hidden_size, output_size, prev_hidden_means,
                     prev_hidden_logvars, prev_last_means,
@@ -81,13 +82,13 @@ for task_idx in range(num_tasks):
     prev_params = deepcopy(state.params)
     prev_hidden_means, prev_hidden_logvars, prev_last_means, prev_last_logvars = extract_means_and_logvars(prev_params)
 
-    for i in num_tasks:
+    for i in range(num_tasks):
         state = create_train_state(model, prev_params, learning_rate=1e-3)
         key, subkey = random.split(key)
         if coreset_size > 0:
             state = train_Dt(subkey, state, 0, coresets[i], num_epochs, prev_params)
 
-        test_loader = PermutedLoader(all_test_data, num_samples=1, permutation=permutations[i], batch_size=128, shuffle=False)
+        test_loader = PermutedLoader(all_test_data, num_samples=1, permutation=permutations[i], batch_size=batch_size, shuffle=False)
         key, subkey = random.split(key)
         accuracy = eval_Dt(subkey, state, 0, test_loader)
         print(f"Task {i} accuracy: {accuracy}")
