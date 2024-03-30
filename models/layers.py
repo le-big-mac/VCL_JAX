@@ -20,8 +20,8 @@ class MFVI_Dense(nn.Module):
         bias_logvar = self.param('bias_logvar', lambda *_: self.bias_logvar_init, self.bias_logvar_init.shape)
         bias_std = jnp.exp(0.5 * bias_logvar)
 
-        kernel_samples = jax.random.normal(rng, kernel_mean.shape) * kernel_std + kernel_mean
-        bias_samples = jax.random.normal(rng, bias_mean.shape) * bias_std + bias_mean
+        kernel_samples = jax.lax.mul(jax.random.normal(rng, kernel_mean.shape), kernel_std) + kernel_mean
+        bias_samples = jax.lax.mul(jax.random.normal(rng, bias_mean.shape), bias_std) + bias_mean
 
         dense = nn.Dense(features=self.features)
         return dense.apply({'params': {'kernel': kernel_samples, 'bias': bias_samples}}, inputs)

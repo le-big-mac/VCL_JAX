@@ -20,7 +20,7 @@ def train_step(rng, state, task_idx, data, targets, prev_params):
     grad_fn = jax.value_and_grad(get_loss)
     loss, grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
-    return state
+    return state, loss
 
 
 @jax.jit
@@ -30,10 +30,14 @@ def eval_step(rng, state, task_idx, data):
 
 
 def train_Dt(rng, state, task_idx, task_loader, num_epochs, prev_params):
-    for _ in tqdm(range(num_epochs)):
+    for i in range(num_epochs):
+        epoch_loss = 0
         for data, targets in task_loader:
             rng, subkey = jax.random.split(rng)
-            state = train_step(subkey, state, task_idx, data, targets, prev_params)
+            state, loss = train_step(subkey, state, task_idx, data, targets, prev_params)
+            epoch_loss += loss
+
+        print(f"Task {task_idx}: Epoch {i+1}, Loss: {epoch_loss / len(task_loader)}")
 
     return state
 
