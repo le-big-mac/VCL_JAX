@@ -4,12 +4,13 @@ import optax
 
 def kl_divergence(m, v, m0, v0):
     if len(m.shape) == 1:
-        const = m.shape[0] # For bias
+        const_term = -0.5 * m.shape[0]  # For bias
     else:
-        const = m.shape[0] * m.shape[1] # For kernel
+        const_term = -0.5 * m.shape[0] * m.shape[1]  # For kernel
 
-    # Compute the KL divergence between two normal distributions
-    kl = 0.5 * (jnp.sum(v0 - v - const + (jnp.exp(v) + (m0 - m)**2) / jnp.exp(v0)))
+    log_std_diff = 0.5 * jnp.sum(v0 - v)
+    mu_diff_term = 0.5 * jnp.sum((jnp.exp(v) + (m - m0)**2) / jnp.exp(v0))
+    kl = const_term + log_std_diff + mu_diff_term
     return kl
 
 
@@ -35,7 +36,7 @@ def loglikelihood(logits, targets):
 def loss_fn(state, logits, targets, prev_params):
     kl = total_kl_divergence(state.params, prev_params)
     log_lik = loglikelihood(logits, targets)
-    return kl / targets.shape[0] - log_lik
+    return kl / targets.shape[1] - log_lik
 
 
 def accuracy(logits, targets):

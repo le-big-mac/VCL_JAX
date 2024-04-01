@@ -4,7 +4,7 @@ import numpy as np
 from flax.training import train_state
 import optax
 
-from training.utils import loss_fn
+from training.utils import loss_fn, total_kl_divergence, loglikelihood
 
 
 def create_train_state(model, params, learning_rate):
@@ -13,7 +13,7 @@ def create_train_state(model, params, learning_rate):
 
 
 @jax.jit
-def train_step(rng, state, task_idx, data, targets, prev_params):
+def train_step_old(rng, state, task_idx, data, targets, prev_params):
     def get_loss(params):
         logits = state.apply_fn({"params": params}, data, task_idx, training=True, rngs={"samples": rng})
         return loss_fn(state, logits, targets, prev_params)
@@ -21,6 +21,24 @@ def train_step(rng, state, task_idx, data, targets, prev_params):
     loss, grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
     return state, loss
+
+
+@jax.jit
+def train_step_vcl(rng, state, task_idx, data, targets, prev_params):
+    def kl_loss(params):
+        return total_kl_divergence(params, prev_params) / targets.shape[1]
+
+    def log_lik_loss(params):
+        logits = state.apply_fn({"params": params}, data, task_idx, training=True, rngs={"samples": rng})
+        return -loglikelihood(logits, targets)
+
+    kl, kl_grads = jax.value_and_grad(kl_loss)(state.params)
+    log_lik, log_lik_grads = jax.value_and_grad(log_lik_loss)(state.params)
+
+    state = state.apply_gradients(grads=kl_grads)
+    state = state.apply_gradients(grads=log_lik_grads)
+
+    return state, kl + log_lik
 
 
 @jax.jit
@@ -33,7 +51,7 @@ def train_epoch(rng, epoch, state, task_idx, task_loader, prev_params):
     batch_losses = []
     for data, targets in task_loader:
         rng, subkey = jax.random.split(rng)
-        state, loss = train_step(subkey, state, task_idx, data, targets, prev_params)
+        state, loss = train_step_vcl(subkey, state, task_idx, data, targets, prev_params)
         batch_losses.append(loss)
 
     batch_losses_np = jax.device_get(batch_losses)

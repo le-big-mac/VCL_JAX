@@ -57,6 +57,16 @@ coreset_selection_fn = random_coreset
 coreset_size = 0
 coresets = []
 
+init_model = model = MFVI_NN(hidden_size, output_size, prev_hidden_means,
+                    prev_hidden_logvars, prev_last_means,
+                    prev_last_logvars,
+                    num_train_samples=num_train_samples,
+                    num_pred_samples=num_pred_samples)
+dummy_input = jnp.ones([1, 784])
+key, params_key = random.split(key)
+params = init_model.init({'params': params_key}, dummy_input, task_idx=0)["params"]
+prev_params = deepcopy(params)
+
 for task_idx, task in enumerate(task_train_data):
     train_data = task
     if coreset_size > 0:
@@ -73,7 +83,6 @@ for task_idx, task in enumerate(task_train_data):
     dummy_input = jnp.ones([1, 784])
     key, params_key = random.split(key)
     params = model.init({'params': params_key}, dummy_input, task_idx=0)["params"]
-    prev_params = deepcopy(params)
     state = create_train_state(model, params, learning_rate=1e-3)
 
     key, subkey = random.split(key)
