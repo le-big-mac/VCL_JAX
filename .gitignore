@@ -2,7 +2,7 @@
 fiddle.ipynb
 permuted.ipynb
 torch.ipynb
-mlp_torch.py
+models/mlp_torch.py
 
 MNIST/
 for_claude/
