@@ -3,8 +3,13 @@ import optax
 
 
 def kl_divergence(m, v, m0, v0):
+    if len(m.shape) == 1:
+        const = m.shape[0] # For bias
+    else:
+        const = m.shape[0] * m.shape[1] # For kernel
+
     # Compute the KL divergence between two normal distributions
-    kl = 0.5 * (jnp.sum(v0 - v - (m.shape[0] * m.shape[1]) + (jnp.exp(v) + (m0 - m)**2) / jnp.exp(v0)))
+    kl = 0.5 * (jnp.sum(v0 - v - const + (jnp.exp(v) + (m0 - m)**2) / jnp.exp(v0)))
     return kl
 
 
