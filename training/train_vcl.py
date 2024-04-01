@@ -1,8 +1,8 @@
 import jax
 import jax.numpy as jnp
+import numpy as np
 from flax.training import train_state
 import optax
-from tqdm import tqdm
 
 from training.utils import loss_fn
 
@@ -29,15 +29,24 @@ def eval_step(rng, state, task_idx, data):
     return jnp.mean(logits, axis=0)
 
 
+def train_epoch(rng, epoch, state, task_idx, task_loader, prev_params):
+    batch_losses = []
+    for data, targets in task_loader:
+        rng, subkey = jax.random.split(rng)
+        state, loss = train_step(subkey, state, task_idx, data, targets, prev_params)
+        batch_losses.append(loss)
+
+    batch_losses_np = jax.device_get(batch_losses)
+    epoch_loss = np.mean(batch_losses_np)
+    print(f"Epoch {epoch} loss: {epoch_loss}")
+
+    return state
+
+
 def train_Dt(rng, state, task_idx, task_loader, num_epochs, prev_params):
     for i in range(num_epochs):
-        epoch_loss = 0
-        for data, targets in task_loader:
-            rng, subkey = jax.random.split(rng)
-            state, loss = train_step(subkey, state, task_idx, data, targets, prev_params)
-            epoch_loss += loss
-
-        print(f"Task {task_idx}: Epoch {i+1}, Loss: {epoch_loss / len(task_loader)}")
+        rng, subkey = jax.random.split(rng)
+        state = train_epoch(subkey, i, state, task_idx, task_loader, prev_params)
 
     return state
 
