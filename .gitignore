@@ -1,5 +1,8 @@
 # Testing
 fiddle.ipynb
+permuted.ipynb
+torch.ipynb
+mlp_torch.py
 
 MNIST/
 for_claude/
