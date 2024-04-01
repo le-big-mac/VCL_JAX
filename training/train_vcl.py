@@ -41,12 +41,12 @@ def eval_step(rng, state, task_idx, data):
     return jnp.mean(logits, axis=0)
 
 
-def train_Dt(rng, state, task_idx, task_loader, num_epochs, prev_params, train_set_size):
+def train_Dt(rng, state, task_idx, head_idx, task_loader, num_epochs, prev_params, train_set_size):
     for i in range(num_epochs):
         epoch_loss = 0
         for data, targets in task_loader:
             rng, subkey = jax.random.split(rng)
-            state, loss = train_step_mfvi(subkey, state, task_idx, data, targets, prev_params, train_set_size)
+            state, loss = train_step_mfvi(subkey, state, head_idx, data, targets, prev_params, train_set_size)
             epoch_loss += loss
 
         print(f"Task {task_idx}: Epoch {i+1}, Loss: {epoch_loss / len(task_loader)}")

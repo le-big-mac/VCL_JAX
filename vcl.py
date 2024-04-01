@@ -79,7 +79,7 @@ def vcl(key, model_hparams, task_train_data, task_test_data, coreset_size, cores
 
         head_idx = task_idx if multi_head else 0
         key, subkey = random.split(key)
-        state = train_Dt(subkey, state, head_idx, train_loader, num_epochs, prev_params, len(train_data))
+        state = train_Dt(subkey, state, task_idx, head_idx, train_loader, num_epochs, prev_params, len(train_data))
         prev_params = deepcopy(state.params)
         prev_hidden_means, prev_hidden_logvars, prev_last_means, prev_last_logvars = extract_means_and_logvars(prev_params)
 
