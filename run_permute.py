@@ -1,15 +1,11 @@
-from copy import deepcopy
 import sys
 
-import jax
 from jax import random
-import jax.numpy as jnp
 import numpy as np
 
 from data.coreset import random_coreset
-from data.mnist import get_permuted_MNIST, SampleLoader, combine_datasets
-from models.mlp import MFVI_NN, extract_means_and_logvars
-from training.train_vcl import create_train_state, train_Dt, eval_Dt
+from data.mnist import get_permuted_MNIST
+from vcl import vcl
 
 seed = int(sys.argv[1])
 print("Running permutation experiment")
@@ -17,79 +13,19 @@ print(f"Seed: {seed}")
 
 key = random.PRNGKey(seed)
 np.random.seed(seed)
-input_size = 784
-hidden_size = [100, 100]
-output_size = 10
-num_train_samples = 10
-num_pred_samples = 100
-num_epochs = 100
-num_tasks = 5
-batch_size = 256
 
-sizes = [input_size] + hidden_size
-key, kernel_keys, bias_keys = random.split(key, 3)
-kernel_keys = random.split(kernel_keys, len(sizes) - 1)
-bias_keys = random.split(bias_keys, len(sizes) - 1)
+hparams = {
+    'input_size': 784,
+    'hidden_size': [100, 100],
+    'output_size': 10,
+    'num_train_samples': 10,
+    'num_pred_samples': 100,
+    'num_epochs': 100,
+    'batch_size': 256
+}
 
-truncated_normal = jax.nn.initializers.truncated_normal(stddev=0.1)
-prev_hidden_means = (
-    [truncated_normal(kernel_keys[i], (sizes[i], sizes[i+1]), jnp.float32) for i in range(len(sizes) - 1)],
-    [truncated_normal(bias_keys[i], (sizes[i+1],), jnp.float32) for i in range(len(sizes) - 1)]
-    )
-prev_hidden_logvars = (
-    [jnp.full((din, dout), -6.) for din, dout in zip(sizes[:-1], sizes[1:])],
-    [jnp.full(dout, -6.) for dout in sizes[1:]]
-    )
-key, kernel_key, bias_key = random.split(key, 3)
-prev_last_means = (
-    [truncated_normal(kernel_key, (hidden_size[-1], output_size), jnp.float32)],
-    [truncated_normal(bias_key, (output_size,), jnp.float32)]
-    )
-prev_last_logvars = (
-    [jnp.full((hidden_size[-1], output_size), -6.)],
-    [jnp.full(output_size, -6.)]
-    )
-
-task_train_data, task_test_data = get_permuted_MNIST(num_tasks)
-permutations = [np.random.permutation(784) for _ in range(num_tasks)]
-
-coreset_selection_fn = random_coreset
+task_train_data, task_test_data = get_permuted_MNIST(5)
 coreset_size = 0
-coresets = []
+coreset_selection_fn = random_coreset
 
-for task_idx, task in enumerate(task_train_data):
-    train_data = task
-    if coreset_size > 0:
-        train_data, coreset_data = coreset_selection_fn(train_data, coreset_size)
-        coresets.append(coreset_data)
-
-    train_loader = SampleLoader(train_data, num_samples=num_train_samples, batch_size=batch_size, shuffle=True)
-
-    model = MFVI_NN(hidden_size, output_size, prev_hidden_means,
-                    prev_hidden_logvars, prev_last_means,
-                    prev_last_logvars,
-                    num_train_samples=num_train_samples,
-                    num_pred_samples=num_pred_samples)
-    dummy_input = jnp.ones([1, 784])
-    key, params_key = random.split(key)
-    params = model.init({'params': params_key}, dummy_input, task_idx=0)["params"]
-    prev_params = deepcopy(params)
-    state = create_train_state(model, params, learning_rate=1e-3)
-
-    key, subkey = random.split(key)
-    state = train_Dt(subkey, state, 0, train_loader, num_epochs, prev_params)
-    prev_params = deepcopy(state.params)
-    prev_hidden_means, prev_hidden_logvars, prev_last_means, prev_last_logvars = extract_means_and_logvars(prev_params)
-
-    if coreset_size > 0 and len(coresets) > 0:
-        coreset = combine_datasets(coresets)
-        coreset_loader = SampleLoader(coreset, num_samples=num_train_samples, batch_size=batch_size, shuffle=True)
-        key, subkey = random.split(key)
-        state = train_Dt(subkey, state, 0, coreset_loader, num_epochs, prev_params)
-
-    for i in range(task_idx + 1):
-        state = create_train_state(model, prev_params, learning_rate=1e-3)
-        test_loader = SampleLoader(task_test_data[i], num_samples=1, batch_size=batch_size, shuffle=False)
-        key, subkey = random.split(key)
-        accuracy = eval_Dt(subkey, state, 0, test_loader)
-        print(f"Task {i} accuracy: {accuracy}")
+vcl(key, hparams, task_train_data, task_test_data, coreset_size, coreset_selection_fn, multi_head=False)

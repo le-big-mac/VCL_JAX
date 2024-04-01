@@ -4,6 +4,46 @@ from flax import linen as nn
 from .layers import MFVI_Dense
 
 
+class Standard_NN(nn.Module):
+    hidden_size: list[int]
+    output_size: int
+
+    def setup(self):
+        self.hidden_layers = [
+            nn.Dense(self.hidden_size[i])
+            for i in range(len(self.hidden_size))
+            ]
+
+        self.final = nn.Dense(self.output_size)
+
+    def __call__(self, inputs):
+        x = inputs
+        for layer in self.hidden_layers:
+            x = layer(x)
+            x = nn.relu(x)
+
+        return self.final(x)
+
+
+def extract_means(params):
+    hidden_means = ([], [])
+    last_means = ([], [])
+
+    i = 0
+    while True:
+        try:
+            hidden_means[0].append(params[f'hidden_layers_{i}']['kernel'])
+            hidden_means[1].append(params[f'hidden_layers_{i}']['bias'])
+            i += 1
+        except KeyError:
+            break
+
+    last_means[0].append(params['final']['kernel'])
+    last_means[1].append(params['final']['bias'])
+
+    return hidden_means, last_means
+
+
 class MFVI_NN(nn.Module):
     hidden_size: list[int]
     output_size: int

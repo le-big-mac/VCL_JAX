@@ -2,9 +2,8 @@ import jax
 import jax.numpy as jnp
 from flax.training import train_state
 import optax
-from tqdm import tqdm
 
-from training.utils import loss_fn
+from training.utils import total_kl_divergence, loglikelihood
 
 
 def create_train_state(model, params, learning_rate):
@@ -13,10 +12,23 @@ def create_train_state(model, params, learning_rate):
 
 
 @jax.jit
-def train_step(rng, state, task_idx, data, targets, prev_params):
+def train_step_mfvi(rng, state, task_idx, data, targets, prev_params):
     def get_loss(params):
         logits = state.apply_fn({"params": params}, data, task_idx, training=True, rngs={"samples": rng})
-        return loss_fn(state, logits, targets, prev_params)
+        kl = total_kl_divergence(params, prev_params) / data.shape[0]
+        loglik = -loglikelihood(logits, targets)
+        return kl + loglik
+    grad_fn = jax.value_and_grad(get_loss)
+    loss, grads = grad_fn(state.params)
+    state = state.apply_gradients(grads=grads)
+    return state, loss
+
+
+@jax.jit
+def train_step(state, data, targets):
+    def get_loss(params):
+        logits = state.apply_fn({"params": params}, data)
+        return -loglikelihood(logits, targets)
     grad_fn = jax.value_and_grad(get_loss)
     loss, grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
@@ -34,10 +46,22 @@ def train_Dt(rng, state, task_idx, task_loader, num_epochs, prev_params):
         epoch_loss = 0
         for data, targets in task_loader:
             rng, subkey = jax.random.split(rng)
-            state, loss = train_step(subkey, state, task_idx, data, targets, prev_params)
+            state, loss = train_step_mfvi(subkey, state, task_idx, data, targets, prev_params)
             epoch_loss += loss
 
         print(f"Task {task_idx}: Epoch {i+1}, Loss: {epoch_loss / len(task_loader)}")
+
+    return state
+
+
+def train_standard(state, loader, num_epochs):
+    for i in range(num_epochs):
+        epoch_loss = 0
+        for data, targets in loader:
+            state, loss = train_step(state, data, targets)
+            epoch_loss += loss
+
+        print(f"Epoch {i+1}, Loss: {epoch_loss / len(loader)}")
 
     return state
 
