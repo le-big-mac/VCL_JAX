@@ -79,7 +79,7 @@ def vcl(key, model_hparams, task_train_data, task_test_data, coreset_size, cores
 
         head_idx = task_idx if multi_head else 0
         key, subkey = random.split(key)
-        state = train_Dt(subkey, state, head_idx, train_loader, num_epochs, prev_params)
+        state = train_Dt(subkey, state, head_idx, train_loader, num_epochs, prev_params, len(train_data))
         prev_params = deepcopy(state.params)
         prev_hidden_means, prev_hidden_logvars, prev_last_means, prev_last_logvars = extract_means_and_logvars(prev_params)
 
@@ -87,7 +87,7 @@ def vcl(key, model_hparams, task_train_data, task_test_data, coreset_size, cores
             coreset = combine_datasets(coresets)
             coreset_loader = SampleLoader(coreset, num_samples=num_train_samples, batch_size=batch_size, shuffle=True)
             key, subkey = random.split(key)
-            state = train_Dt(subkey, state, 0, coreset_loader, num_epochs, prev_params)
+            state = train_Dt(subkey, state, 0, coreset_loader, num_epochs, prev_params, len(coreset))
 
         for i in range(task_idx + 1):
             head_idx = 0
@@ -96,7 +96,7 @@ def vcl(key, model_hparams, task_train_data, task_test_data, coreset_size, cores
                 state = create_train_state(model, prev_params, learning_rate=1e-2)
                 coreset_loader = SampleLoader(coresets[head_idx], num_samples=num_train_samples, batch_size=batch_size, shuffle=True)
                 key, subkey = random.split(key)
-                state = train_Dt(subkey, state, head_idx, coreset_loader, num_epochs, prev_params)
+                state = train_Dt(subkey, state, head_idx, coreset_loader, num_epochs, prev_params, len(coresets[head_idx]))
 
             test_loader = SampleLoader(task_test_data[i], num_samples=1, batch_size=batch_size, shuffle=False)
             key, subkey = random.split(key)
